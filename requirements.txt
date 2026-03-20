@@ -1,0 +1,29 @@
+# Backend
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+python-dotenv==1.0.1
+pydantic-settings==2.7.1
+
+# Vector DB
+chromadb==0.6.3
+
+# Embeddings
+sentence-transformers==3.4.1
+
+# PDF parsing
+PyMuPDF==1.25.3
+
+# LLM providers
+openai==1.59.7
+httpx==0.28.1
+
+# Frontend
+streamlit==1.41.1
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.2
+
+# Linting
+ruff==0.9.4
