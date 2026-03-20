@@ -1,5 +1,3 @@
-# 📚 DocMind — Chat with your Documents
-
 A **Retrieval-Augmented Generation (RAG)** application that lets you upload PDFs and ask questions about their content. The system finds relevant passages and generates answers with source citations.
 
 ## Architecture
