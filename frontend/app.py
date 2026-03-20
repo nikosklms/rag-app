@@ -1,10 +1,11 @@
 """Streamlit frontend — Chat with your Documents UI."""
 
+import os
 import streamlit as st
 import httpx
 
-# Backend API URL
-API_URL = "http://localhost:8000"
+# Backend API URL — configurable via env for Docker
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 st.set_page_config(
     page_title="📚 DocMind — Chat with your Documents",

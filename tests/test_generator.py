@@ -2,7 +2,7 @@
 
 from unittest.mock import patch, MagicMock
 
-from src.generation.generator import generate, _build_prompt, SYSTEM_PROMPT
+from src.generation.generator import generate, _build_prompt
 from src.models.schemas import RetrievalResult
 
 
