@@ -56,7 +56,7 @@ def test_generate_ollama(mock_post):
         mock_settings.ollama_base_url = "http://localhost:11434"
         mock_settings.ollama_model = "llama3.2"
 
-        answer, model = generate("What is ML?", chunks)
+        answer, model = generate("What is ML?", chunks, [])
 
     assert answer == "ML is a subset of AI."
     assert model == "llama3.2"
@@ -82,7 +82,7 @@ def test_generate_openai(mock_openai_class):
         mock_settings.openai_api_key = "sk-test"
         mock_settings.openai_model = "gpt-4o-mini"
 
-        answer, model = generate("What is ML?", chunks)
+        answer, model = generate("What is ML?", chunks, [])
 
     assert answer == "ML is artificial intelligence."
     assert model == "gpt-4o-mini"
