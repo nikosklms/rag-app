@@ -98,22 +98,3 @@ API docs available at: http://localhost:8000/docs
 ```bash
 pytest tests/ -v
 ```
-
-## Project Structure
-
-```
-rag-app/
-├── src/
-│   ├── main.py              # FastAPI entrypoint
-│   ├── config.py            # Settings (env vars)
-│   ├── ingestion/           # PDF parsing → chunking → embedding
-│   ├── retrieval/           # Vector similarity search
-│   ├── generation/          # LLM prompt + response
-│   └── models/              # Pydantic schemas
-├── frontend/
-│   └── app.py               # Streamlit UI
-├── tests/                   # Unit tests
-├── Dockerfile
-├── docker-compose.yml
-└── requirements.txt
-```
