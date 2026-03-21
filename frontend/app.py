@@ -165,8 +165,8 @@ with st.sidebar:
     # File upload
     st.markdown("### Upload Documents")
     uploaded_file = st.file_uploader(
-        "Choose a PDF or TXT file",
-        type=["pdf", "txt"],
+        "Choose a PDF, TXT, MD file",
+        type=["pdf", "txt", "md"],
         help="Upload a document to index it for Q&A",
     )
 

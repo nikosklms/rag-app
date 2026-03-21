@@ -27,3 +27,6 @@ pytest-asyncio==0.25.2
 
 # Linting
 ruff==0.9.4
+
+markdown==3.10.2
+beautifulsoup4==4.14.3

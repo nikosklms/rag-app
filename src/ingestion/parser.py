@@ -2,8 +2,10 @@
 
 from pathlib import Path
 from dataclasses import dataclass
+from bs4 import BeautifulSoup
 
 import fitz  # PyMuPDF
+import markdown
 
 
 @dataclass
@@ -59,10 +61,21 @@ def parse_txt(file_path: str | Path) -> list[ParsedPage]:
     return [ParsedPage(text=text, source=file_path.name, page=1)]
 
 
+def parse_markdown(file_path: str | Path) -> list[ParsedPage]:
+    """ Parse markdown file """
+    file_path = Path(file_path)
+    text = file_path.read_text(encoding="utf-8").strip()
+    if not text: 
+        return []
+    html = markdown.markdown(text)
+    clean = BeautifulSoup(html, "html.parser").get_text()
+
+    return [ParsedPage(text=clean, source=file_path.name, page=1)]
+
 def parse_file(file_path: str | Path) -> list[ParsedPage]:
     """Parse a file based on its extension.
 
-    Supports: .pdf, .txt
+    Supports: .pdf, .txt, .md
 
     Args:
         file_path: Path to the file.
@@ -80,5 +93,7 @@ def parse_file(file_path: str | Path) -> list[ParsedPage]:
         return parse_pdf(file_path)
     elif suffix == ".txt":
         return parse_txt(file_path)
+    elif suffix == ".md":
+        return parse_markdown(file_path)
     else:
         raise ValueError(f"Unsupported file type: {suffix}. Supported: .pdf, .txt")

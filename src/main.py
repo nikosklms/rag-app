@@ -73,10 +73,10 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="No filename provided")
 
     suffix = Path(file.filename).suffix.lower()
-    if suffix not in (".pdf", ".txt"):
+    if suffix not in (".pdf", ".txt", ".md"):
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type: {suffix}. Supported: .pdf, .txt",
+            detail=f"Unsupported file type: {suffix}. Supported: .pdf, .txt, .md",
         )
 
     # Save uploaded file
