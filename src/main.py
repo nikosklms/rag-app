@@ -201,7 +201,7 @@ async def ask_query(request: QueryRequest):
 
     # Generate answer
     try:
-        answer, model = generate(request.query, results)
+        answer, model = generate(request.query, results, request.history)
     except Exception as e:
         raise HTTPException(
             status_code=500,

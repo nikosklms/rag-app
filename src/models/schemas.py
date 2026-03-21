@@ -38,10 +38,12 @@ class DeleteResponse(BaseModel):
 
 # ── Query endpoints ─────────────────────────────────────────────────
 
+
 class QueryRequest(BaseModel):
     """Request body for query endpoints."""
     query: str
     top_k: int = Field(default=5, ge=1, le=20)
+    history: list[dict] = []
 
 
 class RetrievalResult(BaseModel):

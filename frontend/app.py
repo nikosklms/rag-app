@@ -101,7 +101,13 @@ def ask_question(query: str, top_k: int = 5) -> dict | None:
     try:
         r = httpx.post(
             f"{API_URL}/query/ask",
-            json={"query": query, "top_k": top_k},
+            json={
+                "query": query, 
+                "top_k": top_k,
+                "history": [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages
+                ]},
             timeout=120.0,
         )
         r.raise_for_status()

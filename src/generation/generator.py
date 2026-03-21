@@ -7,10 +7,14 @@ from src.config import settings
 from src.models.schemas import RetrievalResult
 
 
-SYSTEM_PROMPT = """You are a helpful assistant. Answer based ONLY on the provided context.
-If the answer is not in the context, say "I couldn't find the answer in the provided documents."
-Cite your sources using [Source: filename, page X] format.
-Be concise and accurate."""
+SYSTEM_PROMPT = """You are a highly capable and precise AI assistant. Your task is to answer the user's question based strictly on the provided document context.
+
+Follow these rules unconditionally:
+1. NO HALLUCINATIONS: Base your answer entirely on the provided context. Do not use outside knowledge. 
+2. UNKNOWN ANSWERS: If the context does not contain the information needed to answer the question, do not guess. Reply exactly with: "I couldn't find the answer to that in the uploaded documents."
+3. BE CONCISE: Give direct, clear answers without unnecessary filler. Use Markdown formatting (bullet points, bold text) to make your response easy to read.
+
+"""
 
 
 def _build_prompt(query: str, context_chunks: list[RetrievalResult]) -> str:
@@ -33,7 +37,7 @@ def _build_prompt(query: str, context_chunks: list[RetrievalResult]) -> str:
     return f"Context:\n{context}\n\nUser question: {query}"
 
 
-def _generate_openai(query: str, context_chunks: list[RetrievalResult]) -> str:
+def _generate_openai(query: str, context_chunks: list[RetrievalResult], history: list[dict]) -> str:
     """Generate answer using OpenAI API.
 
     Args:
@@ -58,7 +62,7 @@ def _generate_openai(query: str, context_chunks: list[RetrievalResult]) -> str:
     return response.choices[0].message.content or ""
 
 
-def _generate_ollama(query: str, context_chunks: list[RetrievalResult]) -> str:
+def _generate_ollama(query: str, context_chunks: list[RetrievalResult], history: list[dict]) -> str:
     """Generate answer using Ollama local API.
 
     Args:
@@ -74,6 +78,7 @@ def _generate_ollama(query: str, context_chunks: list[RetrievalResult]) -> str:
         "model": settings.ollama_model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
+        ] + history + [
             {"role": "user", "content": _build_prompt(query, context_chunks)},
         ],
         "stream": False,
@@ -89,7 +94,7 @@ def _generate_ollama(query: str, context_chunks: list[RetrievalResult]) -> str:
     return data.get("message", {}).get("content", "")
 
 
-def generate(query: str, context_chunks: list[RetrievalResult]) -> tuple[str, str]:
+def generate(query: str, context_chunks: list[RetrievalResult], history: list[dict]) -> tuple[str, str]:
     """Generate an answer using the configured LLM provider.
 
     Args:
@@ -100,10 +105,10 @@ def generate(query: str, context_chunks: list[RetrievalResult]) -> tuple[str, st
         Tuple of (answer_text, model_name).
     """
     if settings.llm_provider == "openai":
-        answer = _generate_openai(query, context_chunks)
+        answer = _generate_openai(query, context_chunks, history)
         model = settings.openai_model
     elif settings.llm_provider == "ollama":
-        answer = _generate_ollama(query, context_chunks)
+        answer = _generate_ollama(query, context_chunks, history)
         model = settings.ollama_model
     else:
         raise ValueError(f"Unknown LLM provider: {settings.llm_provider}")

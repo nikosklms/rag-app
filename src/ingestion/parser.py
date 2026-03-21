@@ -4,8 +4,9 @@ from pathlib import Path
 from dataclasses import dataclass
 from bs4 import BeautifulSoup
 
-import fitz  # PyMuPDF
+# import fitz  # PyMuPDF
 import markdown
+import pdfplumber
 
 
 @dataclass
@@ -26,20 +27,12 @@ def parse_pdf(file_path: str | Path) -> list[ParsedPage]:
         List of ParsedPage objects with text and metadata.
     """
     file_path = Path(file_path)
-    pages: list[ParsedPage] = []
-
-    doc = fitz.open(str(file_path))
-    for page_num in range(len(doc)):
-        page = doc[page_num]
-        text = page.get_text().strip()
-        if text:
-            pages.append(ParsedPage(
-                text=text,
-                source=file_path.name,
-                page=page_num + 1,  # 1-indexed
-            ))
-    doc.close()
-
+    pages = []
+    with pdfplumber.open(str(file_path)) as pdf:
+        for i, page in enumerate(pdf.pages):
+            text = page.extract_text()
+            if text and text.strip():
+                pages.append(ParsedPage(text=text.strip(), source=file_path.name, page=i+1))
     return pages
 
 
