@@ -128,6 +128,18 @@ def show_doc_info(doc_id: str):
     else:
         st.error("Could not fetch info")
 
+@st.dialog("Delete Document")
+def confirm_delete(doc_id: str, filename: str):
+    st.warning(f"Are you sure you want to delete **{filename}**?")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Yes, delete", type="primary"):
+            delete_document(doc_id)
+            st.rerun()
+    with col2:
+        if st.button("Cancel"):
+            st.rerun()
+
 
 # ── Session State ───────────────────────────────────────────────────
 
@@ -184,8 +196,7 @@ with st.sidebar:
                     )
                 with col2:
                     if st.button("🗑️", key=f"del_{doc['document_id']}"):
-                        if delete_document(doc["document_id"]):
-                            st.rerun()
+                        confirm_delete(doc["document_id"], doc["filename"])
                     if st.button("ℹ️", key=f"get_{doc['document_id']}_info"):
                         show_doc_info(doc['document_id'])
 
