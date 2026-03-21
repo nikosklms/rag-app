@@ -110,6 +110,24 @@ def ask_question(query: str, top_k: int = 5) -> dict | None:
         st.error(f"Query failed: {e}")
         return None
 
+def get_doc_info(doc_id: str) -> dict | None:
+    try:
+        r = httpx.get(f"{API_URL}/documents/{doc_id}/info", timeout=10.0)
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return None
+
+@st.dialog("Document Info")
+def show_doc_info(doc_id: str):
+    info = get_doc_info(doc_id)
+    if info:
+        st.metric("Chunks", info['chunk_count'])
+        st.metric("Avg chars/chunk", info['avg_chars_per_chunk'])
+        st.metric("Pages", info['pages_count'])
+    else:
+        st.error("Could not fetch info")
+
 
 # ── Session State ───────────────────────────────────────────────────
 
@@ -168,6 +186,9 @@ with st.sidebar:
                     if st.button("🗑️", key=f"del_{doc['document_id']}"):
                         if delete_document(doc["document_id"]):
                             st.rerun()
+                    if st.button("ℹ️", key=f"get_{doc['document_id']}_info"):
+                        show_doc_info(doc['document_id'])
+
         else:
             st.caption("No documents indexed yet. Upload one above!")
 

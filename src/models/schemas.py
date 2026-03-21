@@ -18,6 +18,12 @@ class DocumentInfo(BaseModel):
     filename: str
     chunk_count: int
 
+class DocumentInfoResponse(BaseModel):
+    "Response for document info"
+    document_id: str
+    chunk_count: int
+    avg_chars_per_chunk: float
+    pages_count: int
 
 class DocumentListResponse(BaseModel):
     """Response for listing all documents."""

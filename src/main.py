@@ -16,6 +16,7 @@ from src.models.schemas import (
     UploadResponse,
     DocumentListResponse,
     DocumentInfo,
+    DocumentInfoResponse,
     DeleteResponse,
     QueryRequest,
     SearchResponse,
@@ -134,6 +135,17 @@ async def list_documents():
             for d in docs
         ]
     )
+
+@app.get("/documents/{document_id}/info", response_model=DocumentInfoResponse)
+async def get_document_info(document_id: str):
+    """Get info for a single document"""
+
+    try:
+        doc = Embedder.get_document_info(document_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return DocumentInfoResponse(**doc) # ** -> unpack
 
 
 @app.delete("/documents/{document_id}", response_model=DeleteResponse)

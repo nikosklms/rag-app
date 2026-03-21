@@ -160,3 +160,36 @@ class Embedder:
     def generate_document_id(cls) -> str:
         """Generate a unique document ID."""
         return str(uuid.uuid4())[:8]
+
+    @classmethod
+    def get_document_info(cls, document_id) -> dict:
+        """Return document statistics."""
+
+        collection = cls.get_collection()
+
+        results = collection.get(
+            where={"document_id": document_id},
+            include=["documents", "metadatas"],
+        )
+        
+        if not results["ids"]:
+            raise ValueError(f"Document {document_id} not found")
+
+        chunks = results["documents"]
+        chunk_count = len(chunks)
+        metas = results["metadatas"]
+        
+        avg_chars_per_chunk = round(sum(len(c) for c in chunks) / chunk_count, 1) if chunk_count else 0
+
+        pages = {m["page"] for m in metas if "page" in m and m["page"] is not None}
+
+        pages_count = len(pages)
+
+        return {
+            "document_id": document_id,
+            "chunk_count": chunk_count,
+            "avg_chars_per_chunk": avg_chars_per_chunk,
+            "pages_count": pages_count,
+        }
+        
+        
