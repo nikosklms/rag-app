@@ -1,5 +1,5 @@
-A **Retrieval-Augmented Generation (RAG)** application that lets you upload PDFs and ask questions about their content. The system finds relevant passages and generates answers with source citations.
-
+A **Retrieval-Augmented Generation (RAG)** application that lets you upload PDFs and ask questions about their content. The system finds relevant passages and generates answers with source citations. 
+This is currently a "Simple RAG" implementation, with plans to expand into more advanced techniques (e.g. GraphRAG, Agentic RAG) in the future.
 ## Architecture
 
 ```
@@ -85,11 +85,15 @@ docker-compose up --build
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/documents/upload` | Upload & index a PDF/TXT |
-| `GET` | `/documents/` | List indexed documents |
-| `DELETE` | `/documents/{id}` | Delete document + vectors |
-| `POST` | `/query/ask` | Full RAG pipeline |
+| `GET`  | `/documents/` | List indexed documents |
+| `GET`  | `/documents/{id}/info` | Get specific document stats |
+| `DELETE`| `/documents/{id}` | Delete document + vectors |
+| `POST` | `/query/ask` | Full RAG pipeline with Chat History |
 | `POST` | `/query/search` | Retrieval only (no LLM) |
-| `GET` | `/health` | Health check |
+| `GET`  | `/chats` | List all saved chat sessions |
+| `GET`  | `/chats/{chat_id}` | Get full history of a chat session |
+| `DELETE`| `/chats/{chat_id}` | Delete a chat session |
+| `GET`  | `/health` | Health check |
 
 API docs available at: http://localhost:8000/docs
 
