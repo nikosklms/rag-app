@@ -1,26 +1,34 @@
 """Tests for the retriever module."""
 
 import pytest
+import tempfile
+import shutil
 
+from src.config import settings
 from src.ingestion.chunker import Chunk
 from src.ingestion.embedder import Embedder
 from src.retrieval.retriever import retrieve
 
 
 @pytest.fixture(autouse=True)
-def clean_collection():
-    """Use a fresh collection for each test."""
-    # Get collection and clear it
-    collection = Embedder.get_collection()
-    # Delete all items if any
-    items = collection.get()
-    if items["ids"]:
-        collection.delete(ids=items["ids"])
+def isolate_chromadb():
+    """Use a temporary directory for ChromaDB during tests to protect real data."""
+    # Create a temp dir
+    temp_dir = tempfile.mkdtemp()
+    
+    # Store old path
+    old_path = settings.chroma_persist_dir
+    settings.chroma_persist_dir = temp_dir
+    
+    # Force Embedder to recreate the client with the new path
+    Embedder._client = None
+    
     yield
-    # Cleanup after test
-    items = collection.get()
-    if items["ids"]:
-        collection.delete(ids=items["ids"])
+    
+    # Restore old path and clean up
+    settings.chroma_persist_dir = old_path
+    Embedder._client = None
+    shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 def test_retrieve_empty():

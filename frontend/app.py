@@ -8,7 +8,7 @@ import httpx
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 st.set_page_config(
-    page_title="📚 DocMind — Chat with your Documents",
+    page_title="Chat with your Documents",
     page_icon="📚",
     layout="wide",
 )
@@ -96,18 +96,52 @@ def delete_document(doc_id: str) -> bool:
         return False
 
 
+def list_chats() -> list:
+    """Fetch the list of saved chats."""
+    try:
+        r = httpx.get(f"{API_URL}/chats", timeout=5.0)
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return []
+
+
+def load_chat(chat_id: str) -> dict | None:
+    """Fetch a specific chat history."""
+    try:
+        r = httpx.get(f"{API_URL}/chats/{chat_id}", timeout=5.0)
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return None
+
+
+def delete_chat(chat_id: str) -> bool:
+    """Delete a specific chat history."""
+    try:
+        r = httpx.delete(f"{API_URL}/chats/{chat_id}", timeout=5.0)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
 def ask_question(query: str, top_k: int = 5) -> dict | None:
     """Send a question through the full RAG pipeline."""
     try:
+        payload = {
+            "query": query, 
+            "top_k": top_k,
+            "history": [
+                {"role": m["role"], "content": m["content"]}
+                for m in st.session_state.messages
+            ]
+        }
+        if st.session_state.get("chat_id"):
+            payload["chat_id"] = st.session_state.chat_id
+            
         r = httpx.post(
             f"{API_URL}/query/ask",
-            json={
-                "query": query, 
-                "top_k": top_k,
-                "history": [
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages
-                ]},
+            json=payload,
             timeout=120.0,
         )
         r.raise_for_status()
@@ -137,20 +171,36 @@ def show_doc_info(doc_id: str):
 @st.dialog("Delete Document")
 def confirm_delete(doc_id: str, filename: str):
     st.warning(f"Are you sure you want to delete **{filename}**?")
-    col1, col2 = st.columns(2)
+    _, col1, col2, _ = st.columns([1.5, 1, 1, 1.5])
     with col1:
-        if st.button("Yes, delete", type="primary"):
+        if st.button("Yes", type="primary", key="yes_del_doc", use_container_width=True):
             delete_document(doc_id)
             st.rerun()
     with col2:
-        if st.button("Cancel"):
+        if st.button("No", key="no_del_doc", use_container_width=True):
             st.rerun()
 
+@st.dialog("Delete Chat")
+def confirm_delete_chat(chat_id: str, title: str):
+    st.warning(f"Are you sure you want to delete chat: **{title}**?")
+    _, col1, col2, _ = st.columns([1.5, 1, 1, 1.5])
+    with col1:
+        if st.button("Yes", type="primary", key="yes_del_chat", use_container_width=True):
+            delete_chat(chat_id)
+            if st.session_state.chat_id == chat_id:
+                st.session_state.chat_id = None
+                st.session_state.messages = []
+            st.rerun()
+    with col2:
+        if st.button("No", key="no_del_chat", use_container_width=True):
+            st.rerun()
 
 # ── Session State ───────────────────────────────────────────────────
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "chat_id" not in st.session_state:
+    st.session_state.chat_id = None
 
 
 # ── Sidebar ─────────────────────────────────────────────────────────
@@ -165,6 +215,42 @@ with st.sidebar:
     else:
         st.error("❌ Backend not reachable")
         st.caption(f"Make sure the API is running at `{API_URL}`")
+
+    st.divider()
+
+    # Chat History
+    st.markdown("### Chat History")
+    
+    if st.button("➕ New Chat", use_container_width=True, type="primary"):
+        st.session_state.messages = []
+        st.session_state.chat_id = None
+        st.rerun()
+        
+    if backend_ok:
+        chats = list_chats()
+        if chats:
+            st.markdown("<br>", unsafe_allow_html=True)
+            for chat in chats:
+                col1, col2 = st.columns([5, 1])
+                with col1:
+                    if st.button(f"{chat['title']}", key=f"chat_{chat['chat_id']}", use_container_width=True):
+                        loaded_chat = load_chat(chat['chat_id'])
+                        if loaded_chat:
+                            st.session_state.chat_id = chat['chat_id']
+                            # Convert dict to session messages
+                            st.session_state.messages = []
+                            for msg in loaded_chat['messages']:
+                                st.session_state.messages.append({
+                                    "role": msg['role'],
+                                    "content": msg['content'],
+                                    "sources": [] # We don't save sources to history JSON currently, though we could
+                                })
+                            st.rerun()
+                with col2:
+                    if st.button("🗑️", key=f"del_chat_{chat['chat_id']}"):
+                        confirm_delete_chat(chat['chat_id'], chat['title'])
+        else:
+            st.caption("No chat history found.")
 
     st.divider()
 
@@ -215,17 +301,11 @@ with st.sidebar:
     st.markdown("### ⚙️ Settings")
     top_k = st.slider("Results to retrieve (top-K)", 1, 20, 5)
 
-    # Clear chat
-    if st.button("🗑️ Clear Chat History", use_container_width=True):
-        st.session_state.messages = []
-        st.rerun()
-
 
 # ── Main Chat Area ──────────────────────────────────────────────────
 
-st.markdown('<p class="main-header">📚 DocMind</p>', unsafe_allow_html=True)
 st.markdown(
-    '<p class="sub-header">Chat with your documents using AI-powered retrieval</p>',
+    '<p class="main-header">Chat with your documents using AI-powered retrieval</p>',
     unsafe_allow_html=True,
 )
 
@@ -287,6 +367,11 @@ if prompt := st.chat_input("Ask a question about your documents..."):
                     "content": result["answer"] if result else "Error generating response.",
                     "sources": result.get("sources", []) if result else [],
                 })
+                
+                # Update chat ID if it's a new chat
+                if result and result.get("chat_id") and not st.session_state.chat_id:
+                    st.session_state.chat_id = result["chat_id"]
+                    st.rerun() # Refresh to show in sidebar
             else:
                 error_msg = "❌ Failed to get a response. Please try again."
                 st.markdown(error_msg)

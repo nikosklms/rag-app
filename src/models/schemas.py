@@ -39,11 +39,16 @@ class DeleteResponse(BaseModel):
 # ── Query endpoints ─────────────────────────────────────────────────
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
 class QueryRequest(BaseModel):
     """Request body for query endpoints."""
     query: str
     top_k: int = Field(default=5, ge=1, le=20)
-    history: list[dict] = []
+    history: list[ChatMessage] = []
+    chat_id: str | None = None
 
 
 class RetrievalResult(BaseModel):
@@ -67,6 +72,24 @@ class AskResponse(BaseModel):
     answer: str
     sources: list[RetrievalResult]
     model: str
+    chat_id: str | None = None
+    chat_title: str | None = None
+
+
+# ── Chat History endpoints ──────────────────────────────────────────
+
+class ChatSummary(BaseModel):
+    """Short summary of a chat session."""
+    chat_id: str
+    title: str
+    updated_at: str
+
+class ChatHistoryResponse(BaseModel):
+    """Full chat session data."""
+    chat_id: str
+    title: str
+    updated_at: str
+    messages: list[ChatMessage]
 
 
 # ── Health ──────────────────────────────────────────────────────────

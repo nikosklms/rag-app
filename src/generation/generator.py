@@ -4,7 +4,7 @@ import httpx
 from openai import OpenAI
 
 from src.config import settings
-from src.models.schemas import RetrievalResult
+from src.models.schemas import RetrievalResult, ChatMessage
 
 
 SYSTEM_PROMPT = """You are a highly capable and precise AI assistant. Your task is to answer the user's question based strictly on the provided document context.
@@ -37,7 +37,7 @@ def _build_prompt(query: str, context_chunks: list[RetrievalResult]) -> str:
     return f"Context:\n{context}\n\nUser question: {query}"
 
 
-def _generate_openai(query: str, context_chunks: list[RetrievalResult], history: list[dict]) -> str:
+def _generate_openai(query: str, context_chunks: list[RetrievalResult], history: list[ChatMessage]) -> str:
     """Generate answer using OpenAI API.
 
     Args:
@@ -53,6 +53,7 @@ def _generate_openai(query: str, context_chunks: list[RetrievalResult], history:
         model=settings.openai_model,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
+        ] + [m.model_dump() for m in history] + [
             {"role": "user", "content": _build_prompt(query, context_chunks)},
         ],
         temperature=0.3,
@@ -62,7 +63,7 @@ def _generate_openai(query: str, context_chunks: list[RetrievalResult], history:
     return response.choices[0].message.content or ""
 
 
-def _generate_ollama(query: str, context_chunks: list[RetrievalResult], history: list[dict]) -> str:
+def _generate_ollama(query: str, context_chunks: list[RetrievalResult], history: list[ChatMessage]) -> str:
     """Generate answer using Ollama local API.
 
     Args:
@@ -78,7 +79,7 @@ def _generate_ollama(query: str, context_chunks: list[RetrievalResult], history:
         "model": settings.ollama_model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-        ] + history + [
+        ] + [m.model_dump() for m in history] + [
             {"role": "user", "content": _build_prompt(query, context_chunks)},
         ],
         "stream": False,
@@ -94,7 +95,7 @@ def _generate_ollama(query: str, context_chunks: list[RetrievalResult], history:
     return data.get("message", {}).get("content", "")
 
 
-def generate(query: str, context_chunks: list[RetrievalResult], history: list[dict]) -> tuple[str, str]:
+def generate(query: str, context_chunks: list[RetrievalResult], history: list[ChatMessage]) -> tuple[str, str]:
     """Generate an answer using the configured LLM provider.
 
     Args:
@@ -114,3 +115,35 @@ def generate(query: str, context_chunks: list[RetrievalResult], history: list[di
         raise ValueError(f"Unknown LLM provider: {settings.llm_provider}")
 
     return answer, model
+
+
+def generate_chat_title(query: str, answer: str) -> str:
+    """Generate a short 3-5 word title for the chat based on the first interaction."""
+    prompt = f"Based on the following query and answer, generate a very short, concise title (max 5 words) for this chat conversation. DO NOT add quotes around the title, just return the raw text.\n\nQuery: {query}\nAnswer: {answer}"
+    
+    if settings.llm_provider == "openai":
+        client = OpenAI(api_key=settings.openai_api_key)
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=20,
+        )
+        return (response.choices[0].message.content or "New Chat").strip().replace('"', '')
+        
+    elif settings.llm_provider == "ollama":
+        data = {
+            "model": settings.ollama_model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+            "options": {"temperature": 0.3}
+        }
+        res = httpx.post(
+            f"{settings.ollama_base_url}/api/chat",
+            json=data,
+            timeout=60.0
+        )
+        res.raise_for_status()
+        return res.json().get("message", {}).get("content", "New Chat").strip().replace('"', '')
+    else:
+        return "New Chat"
