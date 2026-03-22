@@ -1,6 +1,7 @@
 """FastAPI application — RAG API with document management and querying."""
 
 import shutil
+import traceback
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -320,6 +321,7 @@ async def ask_query(request: QueryRequest):
         ])
         
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"LLM generation failed: {e}. Make sure your LLM provider ({settings.llm_provider}) is running.",

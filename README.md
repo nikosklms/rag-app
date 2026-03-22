@@ -67,8 +67,23 @@ Open http://localhost:8501 in your browser.
 
 ### 4. Docker (alternative)
 
+**Prerequisite for Linux users running local Ollama:**  
+By default, a local Ollama service only listens to `localhost` (127.0.0.1) which blocks Docker containers. You must instruct it to listen on all interfaces.
+
+Run it manually via terminal:
+```bash
+OLLAMA_HOST="0.0.0.0" ollama serve
+```
+*(Or if it runs as a systemd service, edit it via `sudo systemctl edit ollama` and add `[Service]` -> `Environment="OLLAMA_HOST=0.0.0.0"`).*
+
+Start the application:
 ```bash
 docker-compose up --build
+```
+
+To stop the application and clean up containers/volumes entirely:
+```bash
+docker-compose down -v
 ```
 
 ## API Endpoints
