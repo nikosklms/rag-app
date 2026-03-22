@@ -1,18 +1,9 @@
-A **Retrieval-Augmented Generation (RAG)** application that lets you upload PDFs and ask questions about their content. The system finds relevant passages and generates answers with source citations. 
+A **Retrieval-Augmented Generation (RAG)** application that lets you upload documents (.pdf, .txt, .md) and ask questions about their content. The system finds relevant passages and generates answers with source citations. 
 This is currently a "Simple RAG" implementation, with plans to expand into more advanced techniques (e.g. GraphRAG, Agentic RAG) in the future.
 ## Architecture
 
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Frontend   │────▶│   FastAPI    │────▶│  LLM (API)   │
-│  (Streamlit) │◀────│   Backend    │◀────│  OpenAI /    │
-└──────────────┘     │              │     │  Ollama      │
-                     │  ┌────────┐  │     └──────────────┘
-                     │  │ChromaDB│  │
-                     │  │(vectors)│  │
-                     │  └────────┘  │
-                     └──────────────┘
-```
+![RAG Architecture Diagram](rag_arch.png)
+*Source: [Merge.dev - How RAG works](https://www.merge.dev/blog/how-rag-works)*
 
 ## Tech Stack
 
@@ -22,7 +13,7 @@ This is currently a "Simple RAG" implementation, with plans to expand into more 
 | Vector DB | ChromaDB |
 | LLM | OpenAI API / Ollama (local) |
 | Embeddings | sentence-transformers (`all-MiniLM-L6-v2`) |
-| PDF Parsing | PyMuPDF |
+| PDF Parsing | pdfplumber |
 | Frontend | Streamlit |
 | Containerization | Docker + docker-compose |
 
