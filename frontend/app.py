@@ -1,6 +1,7 @@
 """Streamlit frontend — Chat with your Documents UI."""
 
 import os
+import json
 import streamlit as st
 import httpx
 
@@ -149,6 +150,81 @@ def ask_question(query: str, top_k: int = 5) -> dict | None:
     except Exception as e:
         st.error(f"Query failed: {e}")
         return None
+
+
+def ask_question_stream(query: str, top_k: int = 5) -> dict | None:
+    """Send a question and stream the answer tokens as SSE."""
+    payload = {
+        "query": query,
+        "top_k": top_k,
+        "history": [
+            {"role": m["role"], "content": m["content"]}
+            for m in st.session_state.messages
+        ],
+    }
+    if st.session_state.get("chat_id"):
+        payload["chat_id"] = st.session_state.chat_id
+
+    answer_placeholder = st.empty()
+    answer_text = ""
+    event_name = "message"
+    meta: dict = {}
+
+    try:
+        with httpx.stream(
+            "POST",
+            f"{API_URL}/query/ask/stream",
+            json=payload,
+            timeout=120.0,
+        ) as response:
+            response.raise_for_status()
+
+            for raw_line in response.iter_lines():
+                if raw_line is None:
+                    continue
+                line = raw_line.decode() if isinstance(raw_line, bytes) else raw_line
+
+                if line.startswith("event: "):
+                    event_name = line[7:].strip()
+                    continue
+                if not line.startswith("data: "):
+                    continue
+
+                data_str = line[6:].strip()
+                data = {}
+                if data_str:
+                    try:
+                        data = json.loads(data_str)
+                    except Exception:
+                        data = {}
+
+                if event_name == "token":
+                    token = data.get("text", "")
+                    if token:
+                        answer_text += token
+                        answer_placeholder.markdown(answer_text + "▌")
+                elif event_name == "meta":
+                    meta = data
+                elif event_name == "error":
+                    detail = data.get("detail", "Unknown streaming error")
+                    st.error(detail)
+                    return None
+                elif event_name == "done":
+                    break
+    except Exception as e:
+        st.error(f"Query failed: {e}")
+        return None
+
+    answer_placeholder.markdown(answer_text if answer_text else " ")
+
+    return {
+        "query": query,
+        "answer": meta.get("answer", answer_text),
+        "sources": meta.get("sources", []),
+        "model": meta.get("model", ""),
+        "chat_id": meta.get("chat_id"),
+        "chat_title": meta.get("chat_title"),
+    }
 
 def get_doc_info(doc_id: str) -> dict | None:
     try:
@@ -339,12 +415,9 @@ if prompt := st.chat_input("Ask a question about your documents..."):
             st.markdown(response_text)
             st.session_state.messages.append({"role": "assistant", "content": response_text})
         else:
-            with st.spinner("Thinking..."):
-                result = ask_question(prompt, top_k=top_k)
+            result = ask_question_stream(prompt, top_k=top_k)
 
             if result:
-                st.markdown(result["answer"])
-
                 sources = result.get("sources", [])
                 if sources:
                     with st.expander("📎 Sources"):

@@ -1,5 +1,7 @@
 """Generator — sends context + query to an LLM and returns a cited answer."""
 
+import json
+from collections.abc import Iterator
 import httpx
 from openai import OpenAI
 
@@ -64,6 +66,31 @@ def _generate_openai(query: str, context_chunks: list[RetrievalResult], history:
     return response.choices[0].message.content or ""
 
 
+def _generate_openai_stream(
+    query: str, context_chunks: list[RetrievalResult], history: list[ChatMessage]
+) -> Iterator[str]:
+    """Stream answer deltas using OpenAI API."""
+    client = OpenAI(api_key=settings.openai_api_key)
+    response = client.chat.completions.create(
+        model=settings.openai_model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+        ] + [m.model_dump() for m in history] + [
+            {"role": "user", "content": _build_prompt(query, context_chunks)},
+        ],
+        temperature=0.3,
+        max_tokens=1024,
+        stream=True,
+    )
+
+    for chunk in response:
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta.content
+        if delta:
+            yield delta
+
+
 def _generate_ollama(query: str, context_chunks: list[RetrievalResult], history: list[ChatMessage]) -> str:
     """Generate answer using Ollama local API.
 
@@ -96,6 +123,35 @@ def _generate_ollama(query: str, context_chunks: list[RetrievalResult], history:
     return data.get("message", {}).get("content", "")
 
 
+def _generate_ollama_stream(
+    query: str, context_chunks: list[RetrievalResult], history: list[ChatMessage]
+) -> Iterator[str]:
+    """Stream answer deltas using Ollama API."""
+    url = f"{settings.ollama_base_url}/api/chat"
+    payload = {
+        "model": settings.ollama_model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+        ] + [m.model_dump() for m in history] + [
+            {"role": "user", "content": _build_prompt(query, context_chunks)},
+        ],
+        "stream": True,
+        "options": {
+            "temperature": 0.3,
+        },
+    }
+
+    with httpx.stream("POST", url, json=payload, timeout=120.0) as response:
+        response.raise_for_status()
+        for line in response.iter_lines():
+            if not line:
+                continue
+            data = json.loads(line)
+            message = data.get("message", {}).get("content", "")
+            if message:
+                yield message
+
+
 def generate(query: str, context_chunks: list[RetrievalResult], history: list[ChatMessage]) -> tuple[str, str]:
     """Generate an answer using the configured LLM provider.
 
@@ -116,6 +172,17 @@ def generate(query: str, context_chunks: list[RetrievalResult], history: list[Ch
         raise ValueError(f"Unknown LLM provider: {settings.llm_provider}")
 
     return answer, model
+
+
+def generate_stream(
+    query: str, context_chunks: list[RetrievalResult], history: list[ChatMessage]
+) -> tuple[Iterator[str], str]:
+    """Generate a streaming answer using the configured LLM provider."""
+    if settings.llm_provider == "openai":
+        return _generate_openai_stream(query, context_chunks, history), settings.openai_model
+    if settings.llm_provider == "ollama":
+        return _generate_ollama_stream(query, context_chunks, history), settings.ollama_model
+    raise ValueError(f"Unknown LLM provider: {settings.llm_provider}")
 
 
 def generate_chat_title(query: str, answer: str) -> str:

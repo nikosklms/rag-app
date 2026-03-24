@@ -2,17 +2,19 @@
 
 import shutil
 import traceback
+import json
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
 from src.config import settings
 from src.ingestion.parser import parse_file
 from src.ingestion.chunker import chunk_text, Chunk
 from src.ingestion.embedder import Embedder
 from src.retrieval.retriever import retrieve
-from src.generation.generator import generate, generate_chat_title
+from src.generation.generator import generate, generate_chat_title, generate_stream
 import src.history_manager as history_manager
 from src.models.schemas import (
     UploadResponse,
@@ -335,3 +337,60 @@ async def ask_query(request: QueryRequest):
         chat_id=chat_id,
         chat_title=chat_title
     )
+
+
+@app.post("/query/ask/stream")
+async def ask_query_stream(request: QueryRequest):
+    """Full RAG pipeline with streamed token output."""
+    if not request.query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+    results = retrieve(request.query, top_k=request.top_k)
+    if not results:
+        def no_docs_stream():
+            answer = "No documents have been indexed yet. Please upload some documents first."
+            yield f"event: token\ndata: {json.dumps({'text': answer})}\n\n"
+            yield "event: done\ndata: {}\n\n"
+        return StreamingResponse(no_docs_stream(), media_type="text/event-stream")
+
+    def event_stream():
+        answer_parts: list[str] = []
+        try:
+            token_stream, model = generate_stream(request.query, results, request.history)
+            for token in token_stream:
+                answer_parts.append(token)
+                yield f"event: token\ndata: {json.dumps({'text': token})}\n\n"
+
+            answer = "".join(answer_parts)
+            chat_id = request.chat_id
+            chat_title = None
+            if not chat_id:
+                chat_title = generate_chat_title(request.query, answer)
+                chat_id = history_manager.create_chat(chat_title)
+
+            history_manager.append_messages(chat_id, [
+                ChatMessage(role="user", content=request.query),
+                ChatMessage(role="assistant", content=answer),
+            ])
+
+            meta = {
+                "query": request.query,
+                "answer": answer,
+                "sources": [r.model_dump() for r in results],
+                "model": model,
+                "chat_id": chat_id,
+                "chat_title": chat_title,
+            }
+            yield f"event: meta\ndata: {json.dumps(meta)}\n\n"
+            yield "event: done\ndata: {}\n\n"
+        except Exception as e:
+            traceback.print_exc()
+            err = {
+                "detail": (
+                    f"LLM generation failed: {e}. "
+                    f"Make sure your LLM provider ({settings.llm_provider}) is running."
+                )
+            }
+            yield f"event: error\ndata: {json.dumps(err)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
