@@ -3,6 +3,7 @@
 import pytest
 import tempfile
 import shutil
+from unittest.mock import patch
 
 from src.config import settings
 from src.ingestion.chunker import Chunk
@@ -39,7 +40,8 @@ async def test_retrieve_empty():
 
 
 @pytest.mark.asyncio
-async def test_retrieve_returns_results():
+@patch("src.retrieval.retriever.rewrite_query", side_effect=lambda q, h: q)
+async def test_retrieve_returns_results(mock_rewrite):
     """Retrieval should return relevant chunks after indexing."""
     chunks = [
         Chunk(text="Machine learning is a subset of AI that learns from data.", source="ml.pdf", page=1, chunk_index=0, chunk_type="child", parent_id="p1"),
@@ -54,7 +56,8 @@ async def test_retrieve_returns_results():
 
 
 @pytest.mark.asyncio
-async def test_retrieve_metadata():
+@patch("src.retrieval.retriever.rewrite_query", side_effect=lambda q, h: q)
+async def test_retrieve_metadata(mock_rewrite):
     """Retrieved results should have correct metadata."""
     chunks = [
         Chunk(text="The Raft consensus algorithm handles leader election.", source="raft.pdf", page=5, chunk_index=3, chunk_type="child", parent_id="p1"),
