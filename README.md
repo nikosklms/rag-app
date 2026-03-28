@@ -1,9 +1,27 @@
-A **Retrieval-Augmented Generation (RAG)** application that lets you upload documents (.pdf, .txt, .md) and ask questions about their content. The system finds relevant passages and generates answers with source citations. 
-This is currently a "Simple RAG" implementation, with plans to expand into more advanced techniques (e.g. GraphRAG, Agentic RAG) in the future.
+An Advanced **Retrieval-Augmented Generation (RAG)** application that lets you upload documents (.pdf, .txt, .md) and ask questions about their content. The system finds relevant passages and generates answers with source citations. 
+It utilizes Hybrid Search (Vector + BM25 keyword matching) and Small-to-Big Retrieval (Parent-Child chunking) with Reciprocal Rank Fusion (RRF) to merge the results. It also features conversation memory, query rewriting, and Server-Sent Events (SSE) streaming.
+
 ## Architecture
 
 ![RAG Architecture Diagram](rag_arch.png)
 *Source: [Merge.dev - How RAG works](https://www.merge.dev/blog/how-rag-works)*
+
+### Retrieval Flow
+
+```mermaid
+graph TD
+    A[User Query] --> B[LLM Query Rewriter]
+    B -->|Resolved Query| C{Hybrid Search}
+    
+    C -->|Semantic| D[ChromaDB Vector Search]
+    C -->|Keywords| E[BM25 Index Search]
+    
+    D --> F[Reciprocal Rank Fusion]
+    E --> F
+    
+    F -->|Top Child Chunks IDs| G[Fetch Parent Chunks]
+    G --> H[Final Context to LLM]
+```
 
 ## Tech Stack
 
@@ -11,9 +29,10 @@ This is currently a "Simple RAG" implementation, with plans to expand into more 
 |-----------|-----------|
 | Backend API | FastAPI (Python) |
 | Vector DB | ChromaDB |
+| Keyword Index | rank-bm25 |
 | LLM | OpenAI API / Ollama (local) |
 | Embeddings | sentence-transformers (`all-MiniLM-L6-v2`) |
-| PDF Parsing | pdfplumber |
+| Parsing | pdfplumber, bs4, markdown |
 | Frontend | Streamlit |
 | Containerization | Docker + docker-compose |
 
@@ -90,11 +109,12 @@ docker-compose down -v
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/documents/upload` | Upload & index a PDF/TXT |
+| `POST` | `/documents/upload` | Upload & index a PDF/TXT/MD |
 | `GET`  | `/documents/` | List indexed documents |
 | `GET`  | `/documents/{id}/info` | Get specific document stats |
 | `DELETE`| `/documents/{id}` | Delete document + vectors |
 | `POST` | `/query/ask` | Full RAG pipeline with Chat History |
+| `POST` | `/query/ask/stream` | Full RAG pipeline with SSE stream |
 | `POST` | `/query/search` | Retrieval only (no LLM) |
 | `GET`  | `/chats` | List all saved chat sessions |
 | `GET`  | `/chats/{chat_id}` | Get full history of a chat session |
