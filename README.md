@@ -1,4 +1,4 @@
-An Advanced **RAG** application that lets you upload documents (.pdf, .txt, .md) and ask questions about their content. The system finds relevant passages and generates answers with source citations. 
+An **Advanced RAG** application that lets you upload documents (.pdf, .txt, .md) and ask questions about their content. The system finds relevant passages and generates answers with source citations. 
 It utilizes Hybrid Search (Vector + BM25 keyword matching) and Small-to-Big Retrieval (Parent-Child chunking) with Reciprocal Rank Fusion (RRF) to merge the results. It also features conversation memory, query rewriting, and Server-Sent Events (SSE) streaming.
 
 ## Architecture
