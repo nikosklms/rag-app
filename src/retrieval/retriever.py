@@ -1,10 +1,7 @@
 """Retriever — Hybrid search (Vector + BM25) and Small-to-Big Retrieval."""
 
-import asyncio
-import math
 from rank_bm25 import BM25Okapi
 
-from src.config import settings
 from src.ingestion.embedder import Embedder
 from src.models.schemas import RetrievalResult, ChatMessage
 from src.generation.generator import rewrite_query
