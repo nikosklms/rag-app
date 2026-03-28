@@ -60,23 +60,42 @@ class Embedder:
         model = cls.get_model()
         collection = cls.get_collection()
 
-        # Generate embeddings for chunk texts
         texts = [chunk.text for chunk in chunks]
-        embeddings = model.encode(texts, show_progress_bar=False).tolist()
+        
+        # Optimize: Only embed children to save time. Parents are never vector-searched.
+        child_texts = [chunk.text for chunk in chunks if chunk.chunk_type == "child"]
+        if child_texts:
+            child_embeddings = model.encode(child_texts, show_progress_bar=False).tolist()
+            dim = len(child_embeddings[0])
+        else:
+            dim = 384 # Fallback
+            child_embeddings = []
+
+        zero_emb = [0.0] * dim
+        embeddings = []
+        child_idx = 0
+        for chunk in chunks:
+            if chunk.chunk_type == "child":
+                embeddings.append(child_embeddings[child_idx])
+                child_idx += 1
+            else:
+                embeddings.append(zero_emb)
 
         # Prepare data for ChromaDB
-        ids = [f"{document_id}_chunk_{i}" for i in range(len(chunks))]
+        ids = [chunk.chunk_id for chunk in chunks]
         metadatas = [
             {
                 "document_id": document_id,
                 "source": chunk.source,
                 "page": chunk.page,
                 "chunk_index": chunk.chunk_index,
+                "chunk_type": chunk.chunk_type,
+                "parent_id": chunk.parent_id if chunk.parent_id else "",
             }
             for chunk in chunks
         ]
 
-        # Upsert chunk texts into documents collection
+        # Upsert chunks into documents collection
         collection.upsert(
             ids=ids,
             embeddings=embeddings,

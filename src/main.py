@@ -13,7 +13,7 @@ from src.config import settings
 from src.ingestion.parser import parse_file
 from src.ingestion.chunker import chunk_text, Chunk
 from src.ingestion.embedder import Embedder
-from src.retrieval.retriever import retrieve
+from src.retrieval.retriever import retrieve, rebuild_bm25_index
 from src.generation.generator import generate, generate_chat_title, generate_stream
 import src.history_manager as history_manager
 from src.models.schemas import (
@@ -108,8 +108,10 @@ async def sync_uploads():
                     text=page.text,
                     source=original_filename,
                     page=page.page,
-                    chunk_size=settings.chunk_size,
-                    chunk_overlap=settings.chunk_overlap,
+                    parent_chunk_size=settings.parent_chunk_size,
+                    parent_chunk_overlap=settings.parent_chunk_overlap,
+                    child_chunk_size=settings.child_chunk_size,
+                    child_chunk_overlap=settings.child_chunk_overlap,
                     start_index=chunk_idx,
                 )
                 all_chunks.extend(page_chunks)
@@ -125,7 +127,14 @@ async def sync_uploads():
 async def startup():
     """Ensure directories exist on startup and sync orphaned uploads."""
     settings.ensure_dirs()
+    
+    # Pre-load the AI model into RAM to bypass cold-start latency later
+    print("⏳ Pre-loading NLP embedding model into memory...")
+    Embedder.get_model()
+    Embedder.get_collection()
+    
     await sync_uploads()
+    rebuild_bm25_index()
 
 
 # ── Health ──────────────────────────────────────────────────────────
@@ -183,14 +192,17 @@ async def upload_document(file: UploadFile = File(...)):
                 text=page.text,
                 source=page.source,
                 page=page.page,
-                chunk_size=settings.chunk_size,
-                chunk_overlap=settings.chunk_overlap,
+                parent_chunk_size=settings.parent_chunk_size,
+                parent_chunk_overlap=settings.parent_chunk_overlap,
+                child_chunk_size=settings.child_chunk_size,
+                child_chunk_overlap=settings.child_chunk_overlap,
                 start_index=chunk_idx,
             )
             all_chunks.extend(page_chunks)
             chunk_idx += len(page_chunks)
 
         chunks_stored = Embedder.embed_chunks(all_chunks, document_id)
+        rebuild_bm25_index()
     except Exception as e:
         # Clean up file on failure
         file_path.unlink(missing_ok=True)
@@ -241,6 +253,7 @@ async def delete_document(document_id: str):
         raise HTTPException(status_code=404, detail="Document not found")
 
     Embedder.delete_document(document_id)
+    rebuild_bm25_index()
 
     # Also delete the uploaded file if it exists
     upload_dir = Path(settings.upload_dir)

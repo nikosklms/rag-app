@@ -25,9 +25,11 @@ class Settings(BaseSettings):
     # ChromaDB
     chroma_persist_dir: str = "./chroma_data"
 
-    # Chunking
-    chunk_size: int = 500
-    chunk_overlap: int = 0
+    # Chunking (Small-to-Big)
+    parent_chunk_size: int = 4096
+    parent_chunk_overlap: int = 0
+    child_chunk_size: int = 512
+    child_chunk_overlap: int = 128
 
     # Retrieval
     top_k: int = 5
