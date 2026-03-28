@@ -63,6 +63,9 @@ def _generate_openai(query: str, context_chunks: list[RetrievalResult], history:
         max_tokens=1024,
     )
 
+    if response.usage:
+        print(f"\n--- OpenAI Usage: Prompt: {response.usage.prompt_tokens}, Completion: {response.usage.completion_tokens}, Total: {response.usage.total_tokens} ---\n")
+
     return response.choices[0].message.content or ""
 
 
@@ -81,9 +84,13 @@ def _generate_openai_stream(
         temperature=0.3,
         max_tokens=1024,
         stream=True,
+        stream_options={"include_usage": True},
     )
 
     for chunk in response:
+        if hasattr(chunk, 'usage') and chunk.usage:
+             print(f"\n--- OpenAI Stream Usage: Prompt: {chunk.usage.prompt_tokens}, Completion: {chunk.usage.completion_tokens}, Total: {chunk.usage.total_tokens} ---\n")
+
         if not chunk.choices:
             continue
         delta = chunk.choices[0].delta.content
@@ -173,7 +180,6 @@ def generate(query: str, context_chunks: list[RetrievalResult], history: list[Ch
 
     return answer, model
 
-
 def generate_stream(
     query: str, context_chunks: list[RetrievalResult], history: list[ChatMessage]
 ) -> tuple[Iterator[str], str]:
@@ -197,6 +203,8 @@ def generate_chat_title(query: str, answer: str) -> str:
             temperature=0.3,
             max_tokens=20,
         )
+        if response.usage:
+            print(f"--- Title Gen Usage: Prompt: {response.usage.prompt_tokens}, Completion: {response.usage.completion_tokens}, Total: {response.usage.total_tokens} ---")
         return (response.choices[0].message.content or "New Chat").strip().replace('"', '')
         
     elif settings.llm_provider == "ollama":
@@ -215,3 +223,67 @@ def generate_chat_title(query: str, answer: str) -> str:
         return res.json().get("message", {}).get("content", "New Chat").strip().replace('"', '')
     else:
         return "New Chat"
+
+
+def rewrite_query(query: str, history: list[ChatMessage] | None = None) -> str:
+    """Rewrite a user query to be more search-friendly.
+
+    Uses the LLM to fix grammar/spelling and expand the query
+    into a clearer, more descriptive form for vector search.
+    When conversation history is provided, resolves references
+    like 'that', 'it', 'the previous one' into concrete terms.
+
+    Args:
+        query: The raw user query.
+        history: Optional conversation history for context.
+
+    Returns:
+        Rewritten query string optimized for embedding search.
+    """
+    system_prompt = """You are a search query optimizer. Rewrite the user's question to be more effective for semantic vector search against a document collection.
+
+    **Rules:**
+    1. Fix any grammar, spelling, or syntax errors.
+    2. Expand abbreviations and shorthand into full terms.
+    3. Make the query more descriptive and specific while preserving the original intent.
+    4. If conversation history is provided, resolve any pronouns or references (e.g., 'that', 'it', 'this', 'the previous one') into their concrete subjects from the conversation.
+    5. Keep it concise — one or two sentences maximum.
+    6. Output ONLY the rewritten query, nothing else. No quotes, no labels."""
+
+    # Build messages with history context if available
+    messages: list[dict] = [{"role": "system", "content": system_prompt}]
+    if history:
+        # Include recent history so the LLM can resolve references
+        for msg in history[-6:]:  # Last 3 turns (6 messages)
+            messages.append(msg.model_dump())
+    messages.append({"role": "user", "content": query})
+
+    if settings.llm_provider == "openai":
+        client = OpenAI(api_key=settings.openai_api_key)
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            messages=messages,
+            temperature=0.2,
+            max_tokens=100,
+        )
+        if response.usage:
+            print(f"--- Query Rewrite Usage: Prompt: {response.usage.prompt_tokens}, Completion: {response.usage.completion_tokens}, Total: {response.usage.total_tokens} ---")
+        return (response.choices[0].message.content or query).strip()
+
+    elif settings.llm_provider == "ollama":
+        data = {
+            "model": settings.ollama_model,
+            "messages": messages,
+            "stream": False,
+            "options": {"temperature": 0.2},
+        }
+        res = httpx.post(
+            f"{settings.ollama_base_url}/api/chat",
+            json=data,
+            timeout=60.0,
+        )
+        res.raise_for_status()
+        return res.json().get("message", {}).get("content", query).strip()
+
+    return query
+

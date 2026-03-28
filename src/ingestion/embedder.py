@@ -43,10 +43,9 @@ class Embedder:
             name="documents",
             metadata={"hnsw:space": "cosine"},
         )
-
     @classmethod
     def embed_chunks(cls, chunks: list[Chunk], document_id: str) -> int:
-        """Embed a list of chunks and store them in ChromaDB.
+        """Embed a list of chunks and store in ChromaDB.
 
         Args:
             chunks: List of Chunk objects to embed.
@@ -61,7 +60,7 @@ class Embedder:
         model = cls.get_model()
         collection = cls.get_collection()
 
-        # Generate embeddings
+        # Generate embeddings for chunk texts
         texts = [chunk.text for chunk in chunks]
         embeddings = model.encode(texts, show_progress_bar=False).tolist()
 
@@ -77,7 +76,7 @@ class Embedder:
             for chunk in chunks
         ]
 
-        # Upsert into collection
+        # Upsert chunk texts into documents collection
         collection.upsert(
             ids=ids,
             embeddings=embeddings,
@@ -102,7 +101,7 @@ class Embedder:
 
     @classmethod
     def delete_document(cls, document_id: str) -> bool:
-        """Delete all chunks belonging to a document.
+        """Delete all chunks belonging to a document from the collection.
 
         Args:
             document_id: The document ID whose chunks to delete.
@@ -111,6 +110,7 @@ class Embedder:
             True if deletion was performed.
         """
         collection = cls.get_collection()
+
         # Get all chunk IDs for this document
         results = collection.get(
             where={"document_id": document_id},

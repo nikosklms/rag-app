@@ -4,6 +4,9 @@ import os
 import json
 import streamlit as st
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Backend API URL — configurable via env for Docker
 API_URL = os.getenv("API_URL", "http://localhost:8000")
@@ -64,6 +67,26 @@ def check_backend() -> bool:
         return r.status_code == 200
     except Exception:
         return False
+
+
+# Messages that should not be sent as conversation history
+_SKIP_HISTORY_PREFIXES = (
+    "No documents have been indexed yet",
+    "⚠️ Backend is not connected",
+    "❌ Failed to get a response",
+    "I couldn't find the answer to that",
+)
+
+
+def _build_history() -> list[dict]:
+    """Build filtered history excluding error/system messages."""
+    history = []
+    for m in st.session_state.messages:
+        content = m["content"]
+        if m["role"] == "assistant" and content.startswith(_SKIP_HISTORY_PREFIXES):
+            continue
+        history.append({"role": m["role"], "content": content})
+    return history
 
 
 def upload_file(file) -> dict | None:
@@ -132,10 +155,7 @@ def ask_question(query: str, top_k: int = 5) -> dict | None:
         payload = {
             "query": query, 
             "top_k": top_k,
-            "history": [
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ]
+            "history": _build_history()
         }
         if st.session_state.get("chat_id"):
             payload["chat_id"] = st.session_state.chat_id
@@ -157,10 +177,7 @@ def ask_question_stream(query: str, top_k: int = 5) -> dict | None:
     payload = {
         "query": query,
         "top_k": top_k,
-        "history": [
-            {"role": m["role"], "content": m["content"]}
-            for m in st.session_state.messages
-        ],
+        "history": _build_history(),
     }
     if st.session_state.get("chat_id"):
         payload["chat_id"] = st.session_state.chat_id
@@ -375,7 +392,7 @@ with st.sidebar:
 
     # Settings
     st.markdown("### ⚙️ Settings")
-    top_k = st.slider("Results to retrieve (top-K)", 1, 20, 5)
+    top_k = st.slider("Results to retrieve (top-K)", 1, 20, int(os.getenv("TOP_K", "5")))
 
 
 # ── Main Chat Area ──────────────────────────────────────────────────

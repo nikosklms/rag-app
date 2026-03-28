@@ -13,66 +13,42 @@ def chunk_text(
     source: str,
     page: int,
     chunk_size: int = 500,
-    chunk_overlap: int = 50,
+    chunk_overlap: int = 0,
     start_index: int = 0,
 ) -> list[Chunk]:
     if not text or not text.strip():
         return []
 
     text = text.strip()
-
-    if len(text) <= chunk_size:
-        return [Chunk(text=text, source=source, page=page, chunk_index=start_index)]
-
     chunks: list[Chunk] = []
+    
     start = 0
     idx = start_index
 
+    # Ensure we don't get stuck in an infinite loop if overlap >= size
+    step = max(1, chunk_size - chunk_overlap)
+
     while start < len(text):
-        end = min(start + chunk_size, len(text))
-
-        if end < len(text):
-            break_pos = text.rfind("\n\n", start, end)
-            if break_pos > start:
-                end = break_pos + 2
-            else:
-                best_break_pos = -1
-                best_sep_len = 0
-                for sep in (". ", "! ", "? ", "\n"):
-                    pos = text.rfind(sep, start, end)
-                    if pos > best_break_pos:
-                        best_break_pos = pos
-                        best_sep_len = len(sep)
-                
-                if best_break_pos > start:
-                    end = best_break_pos + best_sep_len
-                else:
-                    break_pos = text.rfind(" ", start, end)
-                    if break_pos > start:
-                        end = break_pos + 1
-
+        end = start + chunk_size
         chunk_text_slice = text[start:end].strip()
+
         if chunk_text_slice:
             chunks.append(Chunk(
                 text=chunk_text_slice,
                 source=source,
                 page=page,
-                chunk_index=idx,
+                chunk_index=idx
             ))
+            
+            print(f"chunk idx={idx}\ntext={chunk_text_slice[:50]}...\n")
+            
             idx += 1
 
-        if end == len(text):
-            break
-
-        raw_start = max(start + 1, end - chunk_overlap)
+        # Increment by the step (size minus overlap)
+        start += step
         
-        if 0 < raw_start < len(text) and text[raw_start - 1] not in (" ", "\n"):
-            next_space = text.find(" ", raw_start, end)
-            if next_space != -1:
-                start = next_space + 1
-            else:
-                start = raw_start
-        else:
-            start = raw_start
+        # Break if we've reached the end of the text
+        if start >= len(text):
+            break
 
     return chunks

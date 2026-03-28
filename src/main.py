@@ -282,7 +282,7 @@ async def search_query(request: QueryRequest):
     if not request.query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
 
-    results = retrieve(request.query, top_k=request.top_k)
+    results = await retrieve(request.query, top_k=request.top_k, history=request.history)
 
     return SearchResponse(query=request.query, results=results)
 
@@ -294,7 +294,7 @@ async def ask_query(request: QueryRequest):
         raise HTTPException(status_code=400, detail="Query cannot be empty")
 
     # Retrieve relevant chunks
-    results = retrieve(request.query, top_k=request.top_k)
+    results = await retrieve(request.query, top_k=request.top_k, history=request.history)
 
     if not results:
         return AskResponse(
@@ -345,7 +345,7 @@ async def ask_query_stream(request: QueryRequest):
     if not request.query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
 
-    results = retrieve(request.query, top_k=request.top_k)
+    results = await retrieve(request.query, top_k=request.top_k, history=request.history)
     if not results:
         def no_docs_stream():
             answer = "No documents have been indexed yet. Please upload some documents first."
