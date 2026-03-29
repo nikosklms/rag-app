@@ -358,7 +358,7 @@ with st.sidebar:
                                 })
                             st.rerun()
                 with col2:
-                    if st.button("DEL", key=f"del_chat_{chat['chat_id']}"):
+                    if st.button("🗑️", key=f"del_chat_{chat['chat_id']}"):
                         confirm_delete_chat(chat['chat_id'], chat['title'])
         else:
             st.caption("No chat history found.")
@@ -397,9 +397,9 @@ with st.sidebar:
                         f"`{doc['chunk_count']} chunks`"
                     )
                 with col2:
-                    if st.button("DEL", key=f"del_{doc['document_id']}"):
+                    if st.button("🗑️", key=f"del_{doc['document_id']}"):
                         confirm_delete(doc["document_id"], doc["filename"])
-                    if st.button("INFO", key=f"get_{doc['document_id']}_info"):
+                    if st.button("ℹ️", key=f"get_{doc['document_id']}_info"):
                         show_doc_info(doc['document_id'])
 
         else:

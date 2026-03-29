@@ -8,6 +8,9 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """RAG application settings."""
 
+    # App Authentication
+    app_password: str | None = None
+
     # LLM Provider
     llm_provider: str = "ollama"  # "openai" or "ollama"
 
