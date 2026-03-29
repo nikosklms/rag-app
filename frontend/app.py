@@ -13,7 +13,6 @@ API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 st.set_page_config(
     page_title="Chat with your Documents",
-    page_icon="📚",
     layout="wide",
 )
 
@@ -57,6 +56,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ── Authentication ──────────────────────────────────────────────────
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("<h2 style='text-align: center;'>Locked</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center;'>Please enter the access code to continue.</p>", unsafe_allow_html=True)
+        password = st.text_input("Access Code", type="password", label_visibility="collapsed")
+        if st.button("Enter", use_container_width=True):
+            expected_password = os.getenv("APP_PASSWORD")
+            if password == expected_password and expected_password is not None:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("Incorrect password")
+    st.stop()
+
 
 # ── Helper functions ────────────────────────────────────────────────
 
@@ -72,8 +90,8 @@ def check_backend() -> bool:
 # Messages that should not be sent as conversation history
 _SKIP_HISTORY_PREFIXES = (
     "No documents have been indexed yet",
-    "⚠️ Backend is not connected",
-    "❌ Failed to get a response",
+    "Backend is not connected",
+    "Failed to get a response",
     "I couldn't find the answer to that",
 )
 
@@ -299,14 +317,14 @@ if "chat_id" not in st.session_state:
 # ── Sidebar ─────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("## 📂 Document Management")
+    st.markdown("## Document Management")
 
     # Connection status
     backend_ok = check_backend()
     if backend_ok:
-        st.success("✅ Backend connected")
+        st.success("Backend connected")
     else:
-        st.error("❌ Backend not reachable")
+        st.error("Backend not reachable")
         st.caption(f"Make sure the API is running at `{API_URL}`")
 
     st.divider()
@@ -314,7 +332,7 @@ with st.sidebar:
     # Chat History
     st.markdown("### Chat History")
     
-    if st.button("➕ New Chat", use_container_width=True, type="primary"):
+    if st.button("New Chat", use_container_width=True, type="primary"):
         st.session_state.messages = []
         st.session_state.chat_id = None
         st.rerun()
@@ -340,7 +358,7 @@ with st.sidebar:
                                 })
                             st.rerun()
                 with col2:
-                    if st.button("🗑️", key=f"del_chat_{chat['chat_id']}"):
+                    if st.button("DEL", key=f"del_chat_{chat['chat_id']}"):
                         confirm_delete_chat(chat['chat_id'], chat['title'])
         else:
             st.caption("No chat history found.")
@@ -355,15 +373,14 @@ with st.sidebar:
         help="Upload a document to index it for Q&A",
     )
 
-    if uploaded_file and st.button("📤 Upload & Index", use_container_width=True):
+    if uploaded_file and st.button("Upload & Index", use_container_width=True):
         with st.spinner("Parsing and indexing document..."):
             result = upload_file(uploaded_file)
             if result:
                 st.success(
-                    f"✅ Indexed **{result['filename']}** — "
+                    f"Indexed **{result['filename']}** — "
                     f"{result['chunks_created']} chunks created"
                 )
-                st.balloons()
 
     st.divider()
 
@@ -376,13 +393,13 @@ with st.sidebar:
                 col1, col2 = st.columns([3, 1])
                 with col1:
                     st.markdown(
-                        f"📄 **{doc['filename']}**  \n"
+                        f"**{doc['filename']}**  \n"
                         f"`{doc['chunk_count']} chunks`"
                     )
                 with col2:
-                    if st.button("🗑️", key=f"del_{doc['document_id']}"):
+                    if st.button("DEL", key=f"del_{doc['document_id']}"):
                         confirm_delete(doc["document_id"], doc["filename"])
-                    if st.button("ℹ️", key=f"get_{doc['document_id']}_info"):
+                    if st.button("INFO", key=f"get_{doc['document_id']}_info"):
                         show_doc_info(doc['document_id'])
 
         else:
@@ -391,7 +408,7 @@ with st.sidebar:
     st.divider()
 
     # Settings
-    st.markdown("### ⚙️ Settings")
+    st.markdown("### Settings")
     top_k = st.slider("Results to retrieve (top-K)", 1, 20, int(os.getenv("TOP_K", "5")))
 
 
@@ -407,11 +424,11 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         if msg.get("sources"):
-            with st.expander("📎 Sources"):
+            with st.expander("Sources"):
                 for src in msg["sources"]:
                     st.markdown(
                         f'<span class="source-tag">'
-                        f'📄 {src["source"]} — Page {src["page"]} '
+                        f'Source: {src["source"]} — Page {src["page"]} '
                         f'(score: {src["score"]:.2f})'
                         f'</span>',
                         unsafe_allow_html=True,
@@ -428,7 +445,7 @@ if prompt := st.chat_input("Ask a question about your documents..."):
     # Generate response
     with st.chat_message("assistant"):
         if not backend_ok:
-            response_text = "⚠️ Backend is not connected. Please start the API server."
+            response_text = "Backend is not connected. Please start the API server."
             st.markdown(response_text)
             st.session_state.messages.append({"role": "assistant", "content": response_text})
         else:
@@ -437,11 +454,11 @@ if prompt := st.chat_input("Ask a question about your documents..."):
             if result:
                 sources = result.get("sources", [])
                 if sources:
-                    with st.expander("📎 Sources"):
+                    with st.expander("Sources"):
                         for src in sources:
                             st.markdown(
                                 f'<span class="source-tag">'
-                                f'📄 {src["source"]} — Page {src["page"]} '
+                                f'Source: {src["source"]} — Page {src["page"]} '
                                 f'(score: {src["score"]:.2f})'
                                 f'</span>',
                                 unsafe_allow_html=True,
@@ -463,6 +480,6 @@ if prompt := st.chat_input("Ask a question about your documents..."):
                     st.session_state.chat_id = result["chat_id"]
                     st.rerun() # Refresh to show in sidebar
             else:
-                error_msg = "❌ Failed to get a response. Please try again."
+                error_msg = "Failed to get a response. Please try again."
                 st.markdown(error_msg)
                 st.session_state.messages.append({"role": "assistant", "content": error_msg})
