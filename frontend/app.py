@@ -63,7 +63,7 @@ if "authenticated" not in st.session_state:
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("<h2 style='text-align: center;'>Locked</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center;'>RAG-App</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center;'>Please enter the access code to continue.</p>", unsafe_allow_html=True)
         password = st.text_input("Access Code", type="password", label_visibility="collapsed")
         if st.button("Enter", use_container_width=True):
