@@ -54,7 +54,9 @@ pip install -r requirements.txt
 
 # Copy and configure environment
 cp .env.example .env
-# Edit .env with your settings
+
+# Edit .env with your settings (Requires an access code for UI)
+# APP_PASSWORD=your_secure_password
 ```
 
 ### 2. Choose your LLM
@@ -121,7 +123,24 @@ docker-compose down -v
 | `DELETE`| `/chats/{chat_id}` | Delete a chat session |
 | `GET`  | `/health` | Health check |
 
-API docs available at: http://localhost:8000/docs
+API docs available locally at: http://localhost:8000/docs (disabled in production networking).
+
+## Security & Authentication
+
+The Streamlit UI is protected by an environment-based access code. 
+- You must set `APP_PASSWORD` in your `.env` file.
+- If the variable is missing, the application defaults to a "Fail-Secure" state and locks all visitors out.
+- The `fastapi` backend is completely isolated by Docker's internal network (`ports` removed in production) and cannot be accessed externally. 
+
+## Deployment (CI/CD)
+
+The application is deployed to a remote Linux VPS (Ubuntu) using **Docker Compose**.
+Continuous Deployment is automated via **GitHub Actions** (`.github/workflows/deploy.yml`).
+
+When a PR is merged or code is pushed to the `main` branch:
+1. The **CI pipeline** runs `ruff` for linting and `pytest` for unit testing.
+2. If tests pass, the **CD pipeline** connects to the server via SSH.
+3. It performs a `git pull`, rebuilds the Docker images, and restarts the containers automatically with zero downtime.
 
 ## Testing
 
