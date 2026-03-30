@@ -34,7 +34,7 @@ graph TD
 | Embeddings | sentence-transformers (`all-MiniLM-L6-v2`) |
 | Parsing | pdfplumber, bs4, markdown |
 | Frontend | Streamlit |
-| Containerization | Docker + docker-compose |
+| Containerization | Docker |
 
 ## Quick Start
 
