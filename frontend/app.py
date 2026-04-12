@@ -368,9 +368,17 @@ with st.sidebar:
     # File upload
     st.markdown("### Upload Documents")
     uploaded_file = st.file_uploader(
-        "Choose a PDF, TXT, MD file",
-        type=["pdf", "txt", "md"],
-        help="Upload a document to index it for Q&A",
+        "Choose a file to upload",
+        type=[
+            "pdf", "txt", "md",
+            "docx", "pptx", "xlsx",
+            "html", "htm", "csv", "json", "xml",
+            "jpg", "jpeg", "png", "gif", "bmp", "tiff",
+            "mp3", "wav", "m4a",
+            "zip", "epub",
+        ],
+        help="Upload a document to index it for Q&A. "
+             "Supports: PDF, Office docs, text, images, audio, and more.",
     )
 
     if uploaded_file and st.button("Upload & Index", use_container_width=True):

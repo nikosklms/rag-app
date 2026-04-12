@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from src.config import settings
-from src.ingestion.parser import parse_file
+from src.ingestion.parser import parse_file, SUPPORTED_EXTENSIONS
 from src.ingestion.chunker import chunk_text, Chunk
 from src.ingestion.embedder import Embedder
 from src.retrieval.retriever import retrieve, rebuild_bm25_index
@@ -68,7 +68,7 @@ async def sync_uploads():
             continue
             
         suffix = file_path.suffix.lower()
-        if suffix not in (".pdf", ".txt", ".md"):
+        if suffix not in SUPPORTED_EXTENSIONS:
             continue
             
         filename_parts = file_path.name.split("_", 1)
@@ -164,10 +164,10 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="No filename provided")
 
     suffix = Path(file.filename).suffix.lower()
-    if suffix not in (".pdf", ".txt", ".md"):
+    if suffix not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type: {suffix}. Supported: .pdf, .txt, .md",
+            detail=f"Unsupported file type: {suffix}. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
         )
 
     # Save uploaded file
